@@ -7,10 +7,14 @@ http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
+
+  // Health check
   if(req.url==='/health'){
     res.writeHead(200,{'Content-Type':'application/json'});
     res.end(JSON.stringify({status:'ok'}));return;
   }
+
+  // ── FLEXICARE ─────────────────────────────────────────────────────
   if(req.url==='/submit' && req.method==='POST'){
     let body='';
     req.on('data',c=>body+=c);
@@ -61,7 +65,7 @@ http.createServer((req, res) => {
           });
         });
         r.on('error',e=>{
-          console.log('Error:',e.message);
+          console.log('Flexicare error:',e.message);
           res.writeHead(500,{'Content-Type':'application/json'});
           res.end(JSON.stringify({code:-100,response:e.message}));
         });
@@ -74,5 +78,49 @@ http.createServer((req, res) => {
     });
     return;
   }
+
+  // ── CARTRACK ──────────────────────────────────────────────────────
+  if(req.url==='/submit-cartrack' && req.method==='POST'){
+    let body='';
+    req.on('data',c=>body+=c);
+    req.on('end',()=>{
+      try{
+        const d=JSON.parse(body);
+        const p=d.params;
+        const postData=new URLSearchParams(p).toString();
+        const options={
+          hostname:'returnxdigital.leadbyte.co.uk',
+          path:'/api/submit.php',
+          method:'POST',
+          headers:{
+            'Content-Type':'application/x-www-form-urlencoded',
+            'Content-Length':Buffer.byteLength(postData)
+          }
+        };
+        const r=https.request(options,resp=>{
+          let rb='';
+          resp.on('data',c=>rb+=c);
+          resp.on('end',()=>{
+            console.log('CarTrack response:',rb);
+            res.writeHead(200,{'Content-Type':'application/json'});
+            try{res.end(JSON.stringify(JSON.parse(rb)));}
+            catch(e){res.end(JSON.stringify({code:1,response:'OK',leadId:null}));}
+          });
+        });
+        r.on('error',e=>{
+          console.log('CarTrack error:',e.message);
+          res.writeHead(500,{'Content-Type':'application/json'});
+          res.end(JSON.stringify({code:-100,response:e.message}));
+        });
+        r.write(postData);
+        r.end();
+      }catch(e){
+        res.writeHead(400,{'Content-Type':'application/json'});
+        res.end(JSON.stringify({code:-100,response:e.message}));
+      }
+    });
+    return;
+  }
+
   res.writeHead(404);res.end('not found');
 }).listen(PORT,()=>console.log('Proxy running on port '+PORT));
