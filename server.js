@@ -157,4 +157,3 @@ http.createServer((req, res) => {
 
   res.writeHead(404);res.end('not found');
 }).listen(PORT,()=>console.log('Proxy running on port '+PORT));
-}).listen(PORT,()=>console.log('Proxy running on port '+PORT));
