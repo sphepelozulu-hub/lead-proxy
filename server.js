@@ -1,159 +1,504 @@
 const http = require('http');
 const https = require('https');
+
 const PORT = process.env.PORT || 3000;
 
 http.createServer((req, res) => {
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
 
-  if(req.url==='/health'){
-    res.writeHead(200,{'Content-Type':'application/json'});
-    res.end(JSON.stringify({status:'ok'}));return;
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
   }
 
-  function postToLeadbyte(postData, res){
-    const options={
-      hostname:'returnxdigital.leadbyte.co.uk',
-      path:'/api/submit.php',
-      method:'POST',
-      headers:{'Content-Type':'application/x-www-form-urlencoded','Content-Length':Buffer.byteLength(postData)}
+  // ─────────────────────────────────────────────────────────────
+  // HEALTH CHECK
+  // ─────────────────────────────────────────────────────────────
+
+  if (req.url === '/health') {
+    res.writeHead(200, {
+      'Content-Type': 'application/json'
+    });
+
+    res.end(JSON.stringify({
+      status: 'ok'
+    }));
+
+    return;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // SEND LEAD TO LEADBYTE
+  // ─────────────────────────────────────────────────────────────
+
+  function postToLeadbyte(postData, res) {
+
+    const options = {
+      hostname: 'returnxdigital.leadbyte.co.uk',
+      path: '/api/submit.php',
+      method: 'POST',
+
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(postData)
+      }
     };
-    const r=https.request(options,resp=>{
-      let rb='';
-      resp.on('data',c=>rb+=c);
-      resp.on('end',()=>{
-        console.log('Response:',rb);
-        res.writeHead(200,{'Content-Type':'application/json'});
-        try{res.end(JSON.stringify(JSON.parse(rb)));}
-        catch(e){res.end(JSON.stringify({code:1,response:'OK',leadId:null}));}
+
+    const request = https.request(options, response => {
+
+      let responseBody = '';
+
+      response.on('data', chunk => {
+        responseBody += chunk;
+      });
+
+      response.on('end', () => {
+
+        console.log('LeadByte Response:', responseBody);
+
+        res.writeHead(200, {
+          'Content-Type': 'application/json'
+        });
+
+        try {
+          res.end(JSON.stringify(JSON.parse(responseBody)));
+        } catch (error) {
+          res.end(JSON.stringify({
+            code: -100,
+            response: 'Invalid response from LeadByte',
+            raw: responseBody
+          }));
+        }
       });
     });
-    r.on('error',e=>{
-      res.writeHead(500,{'Content-Type':'application/json'});
-      res.end(JSON.stringify({code:-100,response:e.message}));
+
+    request.on('error', error => {
+
+      console.error('LeadByte Error:', error);
+
+      res.writeHead(500, {
+        'Content-Type': 'application/json'
+      });
+
+      res.end(JSON.stringify({
+        code: -100,
+        response: error.message
+      }));
     });
-    r.write(postData);r.end();
+
+    request.write(postData);
+    request.end();
   }
 
-  function getOptinDate(){
-    const n=new Date();
-    const dd=n.getDate().toString().padStart(2,'0');
-    const mm=(n.getMonth()+1).toString().padStart(2,'0');
-    const hh=n.getHours().toString().padStart(2,'0');
-    const mi=n.getMinutes().toString().padStart(2,'0');
-    const ss=n.getSeconds().toString().padStart(2,'0');
-    return dd+'/'+mm+'/'+n.getFullYear()+' '+hh+':'+mi+':'+ss;
+  // ─────────────────────────────────────────────────────────────
+  // OPT-IN DATE
+  // Format: dd/mm/yyyy hh:mm:ss
+  // ─────────────────────────────────────────────────────────────
+
+  function getOptinDate() {
+
+    const now = new Date();
+
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mi = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+
+    return `${dd}/${mm}/${yyyy} ${hh}:${mi}:${ss}`;
   }
 
-  function generateSAID(){
-    const yr=String(45+Math.floor(Math.random()*20)).padStart(2,'0');
-    const mo=String(1+Math.floor(Math.random()*12)).padStart(2,'0');
-    const dy=String(1+Math.floor(Math.random()*28)).padStart(2,'0');
-    const sq=String(Math.floor(Math.random()*5000)).padStart(4,'0');
-    const p=yr+mo+dy+sq+'08';
-    let sum=0;
-    for(let i=0;i<p.length;i++){let d=parseInt(p[p.length-1-i]);if(i%2===1){d*=2;if(d>9)d-=9;}sum+=d;}
-    return p+((10-(sum%10))%10);
-  }
+  // ─────────────────────────────────────────────────────────────
+  // READ REQUEST BODY
+  // ─────────────────────────────────────────────────────────────
 
-  function readBody(req,cb){let b='';req.on('data',c=>b+=c);req.on('end',()=>cb(b));}
+  function readBody(req, callback) {
 
-  // ── FLEXICARE ──────────────────────────────────────────────────────────────
-  if(req.url==='/submit' && req.method==='POST'){
-    readBody(req,body=>{
-      try{
-        const d=JSON.parse(body);
-        const p=new URLSearchParams();
-        p.append('campid','MEDICAL-WHITE-LABEL');
-        p.append('sid','25393');
-        p.append('returnjson','yes');
-        p.append('firstname',d.params.firstname||'');
-        p.append('lastname',d.params.lastname||'');
-        p.append('phone1',d.params.phone||'');
-        p.append('email',d.params.email||'');
-        p.append('optinurl',d.params.optinurl||'http://tracking.affcoza.com/aff_c?offer_id=3066&aff_id=25393');
-        p.append('optindate',getOptinDate());
-        p.append('doi','true');
-        p.append('acceptterms','true');
-        p.append('age_range','25 - 34');
-        p.append('income_range','R10 000 - R15 000');
-        p.append('offer_id','2514');
-        postToLeadbyte(p.toString(),res);
-      }catch(e){res.writeHead(400,{'Content-Type':'application/json'});res.end(JSON.stringify({code:-100,response:e.message}));}
+    let body = '';
+
+    req.on('data', chunk => {
+      body += chunk;
     });
+
+    req.on('end', () => {
+      callback(body);
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // FLEXICARE / MEDICAL WHITE LABEL
+  // ─────────────────────────────────────────────────────────────
+
+  if (req.url === '/submit' && req.method === 'POST') {
+
+    readBody(req, body => {
+
+      try {
+
+        const d = JSON.parse(body);
+
+        const p = new URLSearchParams();
+
+        p.append('campid', 'MEDICAL-WHITE-LABEL');
+        p.append('sid', '25393');
+        p.append('returnjson', 'yes');
+
+        p.append('firstname', d.params?.firstname || '');
+        p.append('lastname', d.params?.lastname || '');
+        p.append('phone1', d.params?.phone || '');
+        p.append('email', d.params?.email || '');
+
+        p.append(
+          'optinurl',
+          d.params?.optinurl ||
+          'http://tracking.affcoza.com/aff_c?offer_id=3066&aff_id=25393'
+        );
+
+        p.append('optindate', getOptinDate());
+        p.append('doi', 'true');
+        p.append('acceptterms', 'true');
+
+        p.append('age_range', '25 - 34');
+        p.append('income_range', 'R10 000 - R15 000');
+
+        p.append('offer_id', '2514');
+
+        postToLeadbyte(p.toString(), res);
+
+      } catch (error) {
+
+        res.writeHead(400, {
+          'Content-Type': 'application/json'
+        });
+
+        res.end(JSON.stringify({
+          code: -100,
+          response: error.message
+        }));
+      }
+    });
+
     return;
   }
 
-  // ── CARTRACK ──────────────────────────────────────────────────────────────
-  if(req.url==='/submit-cartrack' && req.method==='POST'){
-    readBody(req,body=>{
-      try{
-        const d=JSON.parse(body);
-        const p=new URLSearchParams(d.params);
-        postToLeadbyte(p.toString(),res);
-      }catch(e){res.writeHead(400,{'Content-Type':'application/json'});res.end(JSON.stringify({code:-100,response:e.message}));}
+  // ─────────────────────────────────────────────────────────────
+  // CARTRACK DASHCAMS
+  // ─────────────────────────────────────────────────────────────
+
+  if (req.url === '/submit-cartrack' && req.method === 'POST') {
+
+    readBody(req, body => {
+
+      try {
+
+        const d = JSON.parse(body);
+
+        const p = new URLSearchParams();
+
+        Object.entries(d.params || {}).forEach(([key, value]) => {
+          p.append(key, value ?? '');
+        });
+
+        postToLeadbyte(p.toString(), res);
+
+      } catch (error) {
+
+        res.writeHead(400, {
+          'Content-Type': 'application/json'
+        });
+
+        res.end(JSON.stringify({
+          code: -100,
+          response: error.message
+        }));
+      }
     });
+
     return;
   }
 
-  // ── LOANS ─────────────────────────────────────────────────────────────────
-  if(req.url==='/submit-loans' && req.method==='POST'){
-    readBody(req,body=>{
-      try{
-        const d=JSON.parse(body);
-        const p=new URLSearchParams();
-        p.append('campid','KONGA');
-        p.append('sid','25393');
-        p.append('returnjson','yes');
-        p.append('firstname',d.params.firstname||'');
-        p.append('lastname',d.params.lastname||'');
-        p.append('phone1',d.params.phone||'');
-        p.append('email',d.params.email||'');
-        p.append('optinurl',d.params.optinurl||'https://sites.google.com/view/quick-loans-sa/home');
-        p.append('optindate',getOptinDate());
-        p.append('idnumber',d.params.idnumber||generateSAID());
-        p.append('underdebtreview','false');
-        p.append('acceptterms','true');
-        p.append('netincome',d.params.netincome||'15000');
-        p.append('offer_id','397');
-        postToLeadbyte(p.toString(),res);
-      }catch(e){res.writeHead(400,{'Content-Type':'application/json'});res.end(JSON.stringify({code:-100,response:e.message}));}
+  // ─────────────────────────────────────────────────────────────
+  // LOANS
+  // ─────────────────────────────────────────────────────────────
+
+  if (req.url === '/submit-loans' && req.method === 'POST') {
+
+    readBody(req, body => {
+
+      try {
+
+        const d = JSON.parse(body);
+
+        const p = new URLSearchParams();
+
+        p.append('campid', 'KONGA');
+        p.append('sid', '25393');
+        p.append('returnjson', 'yes');
+
+        p.append('firstname', d.params?.firstname || '');
+        p.append('lastname', d.params?.lastname || '');
+        p.append('phone1', d.params?.phone || '');
+        p.append('email', d.params?.email || '');
+
+        p.append(
+          'optinurl',
+          d.params?.optinurl ||
+          'https://sites.google.com/view/quick-loans-sa/home'
+        );
+
+        p.append('optindate', getOptinDate());
+
+        p.append(
+          'idnumber',
+          d.params?.idnumber || ''
+        );
+
+        p.append('underdebtreview', 'false');
+        p.append('acceptterms', 'true');
+
+        p.append(
+          'netincome',
+          d.params?.netincome || '15000'
+        );
+
+        p.append('offer_id', '397');
+
+        postToLeadbyte(p.toString(), res);
+
+      } catch (error) {
+
+        res.writeHead(400, {
+          'Content-Type': 'application/json'
+        });
+
+        res.end(JSON.stringify({
+          code: -100,
+          response: error.message
+        }));
+      }
     });
+
     return;
   }
 
-  // ── CAR INSURANCE ─────────────────────────────────────────────────────────
-  if(req.url==='/submit-carinsurance' && req.method==='POST'){
-    readBody(req,body=>{
-      try{
-        const d=JSON.parse(body);
-        const p=new URLSearchParams();
-        p.append('campid','CAR-INSURANCE');
-        p.append('sid','25393');
-        p.append('returnjson','yes');
-        p.append('firstname',d.params.firstname||'');
-        p.append('lastname',d.params.lastname||'');
-        p.append('phone1',d.params.phone||'');
-        if(d.params.email) p.append('email',d.params.email);
-        p.append('optinurl',d.params.optinurl||'https://sites.google.com/view/car-insurance-sa/home');
-        p.append('optindate',getOptinDate());
-        p.append('channel','JMAff');
-        p.append('product','JMCar');
-        p.append('leadsource','JMAFFSite26748');
-        p.append('affiliateshortcode','JMAFFSite26748');
-        p.append('doi','true');
-        p.append('acceptterms','true');
-        p.append('car_ownership','yes');
-        p.append('age_range','25 - 34');
-        p.append('income_range','R10 000 - R15 000');
-        p.append('offer_id','377');
-        postToLeadbyte(p.toString(),res);
-      }catch(e){res.writeHead(400,{'Content-Type':'application/json'});res.end(JSON.stringify({code:-100,response:e.message}));}
+  // ─────────────────────────────────────────────────────────────
+  // CAR INSURANCE
+  // ─────────────────────────────────────────────────────────────
+
+  if (
+    req.url === '/submit-carinsurance' &&
+    req.method === 'POST'
+  ) {
+
+    readBody(req, body => {
+
+      try {
+
+        const d = JSON.parse(body);
+
+        const p = new URLSearchParams();
+
+        p.append('campid', 'CAR-INSURANCE');
+        p.append('sid', '25393');
+        p.append('returnjson', 'yes');
+
+        p.append('firstname', d.params?.firstname || '');
+        p.append('lastname', d.params?.lastname || '');
+        p.append('phone1', d.params?.phone || '');
+
+        if (d.params?.email) {
+          p.append('email', d.params.email);
+        }
+
+        p.append(
+          'optinurl',
+          d.params?.optinurl ||
+          'https://sites.google.com/view/car-insurance-sa/home'
+        );
+
+        p.append('optindate', getOptinDate());
+
+        p.append('channel', 'JMAff');
+        p.append('product', 'JMCar');
+        p.append('leadsource', 'JMAFFSite26748');
+        p.append('affiliateshortcode', 'JMAFFSite26748');
+
+        p.append('doi', 'true');
+        p.append('acceptterms', 'true');
+
+        p.append('car_ownership', 'yes');
+        p.append('age_range', '25 - 34');
+        p.append('income_range', 'R10 000 - R15 000');
+
+        p.append('offer_id', '377');
+
+        postToLeadbyte(p.toString(), res);
+
+      } catch (error) {
+
+        res.writeHead(400, {
+          'Content-Type': 'application/json'
+        });
+
+        res.end(JSON.stringify({
+          code: -100,
+          response: error.message
+        }));
+      }
     });
+
     return;
   }
 
-  res.writeHead(404);res.end('not found');
-}).listen(PORT,()=>console.log('Proxy running on port '+PORT));
+  // ─────────────────────────────────────────────────────────────
+  // 1LIFE LIFE COVER
+  // Campaign: LIFE-COVER
+  // SID: 25393
+  // Offer ID: 2807
+  // ─────────────────────────────────────────────────────────────
+
+  if (
+    req.url === '/submit-1life' &&
+    req.method === 'POST'
+  ) {
+
+    readBody(req, body => {
+
+      try {
+
+        const d = JSON.parse(body);
+
+        const p = new URLSearchParams();
+
+        // Campaign identification
+        p.append('campid', 'LIFE-COVER');
+        p.append('sid', '25393');
+        p.append('returnjson', 'yes');
+
+        // Required personal details
+        p.append(
+          'email',
+          d.params?.email || ''
+        );
+
+        p.append(
+          'firstname',
+          d.params?.firstname || ''
+        );
+
+        p.append(
+          'lastname',
+          d.params?.lastname || ''
+        );
+
+        p.append(
+          'phone1',
+          d.params?.phone ||
+          d.params?.phone1 ||
+          ''
+        );
+
+        // Opt-in information
+        p.append(
+          'optinurl',
+          d.params?.optinurl ||
+          'https://returnxdigital.leadbyte.co.uk/integration?slice=6a748c4e510b0901923052'
+        );
+
+        p.append(
+          'optindate',
+          d.params?.optindate ||
+          getOptinDate()
+        );
+
+        // Optional income bracket
+        if (d.params?.incomebracket) {
+          p.append(
+            'incomebracket',
+            d.params.incomebracket
+          );
+        }
+
+        // Optional HIV information
+        if (
+          d.params?.hiv_life_insurance !== undefined &&
+          d.params?.hiv_life_insurance !== ''
+        ) {
+          p.append(
+            'hiv_life_insurance',
+            String(d.params.hiv_life_insurance)
+          );
+        }
+
+        // Optional diabetes information
+        if (
+          d.params?.diabetes_life_insurance !== undefined &&
+          d.params?.diabetes_life_insurance !== ''
+        ) {
+          p.append(
+            'diabetes_life_insurance',
+            String(d.params.diabetes_life_insurance)
+          );
+        }
+
+        // Terms
+        p.append(
+          'acceptterms',
+          d.params?.acceptterms !== undefined
+            ? String(d.params.acceptterms)
+            : 'true'
+        );
+
+        // IMPORTANT:
+        // Integration information supplied for this campaign
+        p.append('offer_id', '2807');
+
+        console.log(
+          'Sending 1Life lead to LeadByte:',
+          p.toString()
+        );
+
+        postToLeadbyte(p.toString(), res);
+
+      } catch (error) {
+
+        console.error(
+          '1Life submission error:',
+          error
+        );
+
+        res.writeHead(400, {
+          'Content-Type': 'application/json'
+        });
+
+        res.end(JSON.stringify({
+          code: -100,
+          response: error.message
+        }));
+      }
+    });
+
+    return;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // UNKNOWN ROUTE
+  // ─────────────────────────────────────────────────────────────
+
+  res.writeHead(404, {
+    'Content-Type': 'text/plain'
+  });
+
+  res.end('not found');
+
+}).listen(PORT, () => {
+  console.log(
+    'Lead Proxy running on port ' + PORT
+  );
+});
