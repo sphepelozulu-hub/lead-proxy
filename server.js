@@ -465,9 +465,7 @@ http.createServer((req, res) => {
 
         p.append(
           'acceptterms',
-          incoming.acceptterms !== undefined
-            ? String(incoming.acceptterms)
-            : 'true'
+          'true'
         );
 
         p.append(
