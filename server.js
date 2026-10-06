@@ -195,9 +195,9 @@ http.createServer((req, res) => {
 
 
   /*
-  ======================================================
+  =======================================================
   FLEXICARE
-  ======================================================
+  =======================================================
   */
 
   if (
@@ -235,10 +235,10 @@ http.createServer((req, res) => {
 
 
   /*
-  ======================================================
+  =======================================================
   CARTRACK CAMERAS
   OFFER 3046
-  ======================================================
+  =======================================================
   */
 
   if (
@@ -279,10 +279,10 @@ http.createServer((req, res) => {
 
 
   /*
-  ======================================================
+  =======================================================
   1LIFE LIFE COVER
   OFFER 2807
-  ======================================================
+  =======================================================
   */
 
   if (
@@ -305,171 +305,4 @@ http.createServer((req, res) => {
         p.append('email', String(incoming.email || '').trim());
         p.append('optinurl', String(incoming.optinurl || 'http://url.com').trim());
         p.append('optindate', String(incoming.optindate || getOptinDate()).trim());
-        p.append('doi', incoming.doi !== undefined ? String(incoming.doi) : 'true');
-        p.append('acceptterms', incoming.acceptterms !== undefined ? String(incoming.acceptterms) : 'true');
-
-        if (incoming.incomebracket) {
-          p.append('incomebracket', String(incoming.incomebracket).trim());
-        }
-        if (incoming.hiv_life_insurance !== undefined) {
-          p.append('hiv_life_insurance', String(incoming.hiv_life_insurance));
-        }
-        if (incoming.diabetes_life_insurance !== undefined) {
-          p.append('diabetes_life_insurance', String(incoming.diabetes_life_insurance));
-        }
-        if (incoming.employed !== undefined) {
-          p.append('employed', String(incoming.employed));
-        }
-        if (incoming.citizen !== undefined) {
-          p.append('citizen', String(incoming.citizen));
-        }
-        if (incoming.sa_citizen !== undefined) {
-          p.append('sa_citizen', String(incoming.sa_citizen));
-        }
-
-        postToLeadbyte(p.toString(), res);
-      } catch (error) {
-        sendJson(res, 400, { code: -100, response: error.message });
-      }
-    });
-    return;
-  }
-
-
-  /*
-  ======================================================
-  LOANS
-  ======================================================
-  */
-
-  if (
-    req.url === '/submit-loans' &&
-    req.method === 'POST'
-  ) {
-    readBody(req, body => {
-      try {
-        const data = JSON.parse(body);
-        const incoming = getIncoming(data);
-        const p = new URLSearchParams();
-
-        p.append('campid', 'KONGA');
-        p.append('sid', '25393');
-        p.append('returnjson', 'yes');
-        p.append('firstname', incoming.firstname || '');
-        p.append('lastname', incoming.lastname || '');
-        p.append('phone1', incoming.phone || incoming.phone1 || '');
-        p.append('email', incoming.email || '');
-        p.append('optinurl', incoming.optinurl || 'https://sites.google.com/view/quick-loans-sa/home');
-        p.append('optindate', incoming.optindate || getOptinDate());
-        p.append('idnumber', incoming.idnumber || generateSAID());
-        p.append('underdebtreview', 'false');
-        p.append('acceptterms', 'true');
-        p.append('netincome', incoming.netincome || '15000');
-        p.append('offer_id', '397');
-
-        postToLeadbyte(p.toString(), res);
-      } catch (error) {
-        sendJson(res, 400, { code: -100, response: error.message });
-      }
-    });
-    return;
-  }
-
-
-  /*
-  ======================================================
-  CAR INSURANCE
-  ======================================================
-  */
-
-  if (
-    req.url === '/submit-carinsurance' &&
-    req.method === 'POST'
-  ) {
-    readBody(req, body => {
-      try {
-        const data = JSON.parse(body);
-        const incoming = getIncoming(data);
-        const p = new URLSearchParams();
-
-        p.append('campid', 'CAR-INSURANCE');
-        p.append('sid', '25393');
-        p.append('returnjson', 'yes');
-        p.append('firstname', incoming.firstname || '');
-        p.append('lastname', incoming.lastname || '');
-        p.append('phone1', incoming.phone || incoming.phone1 || '');
-        if (incoming.email) {
-          p.append('email', incoming.email);
-        }
-        p.append('optinurl', incoming.optinurl || 'https://sites.google.com/view/car-insurance-sa/home');
-        p.append('optindate', incoming.optindate || getOptinDate());
-        p.append('channel', 'JMAff');
-        p.append('product', 'JMCar');
-        p.append('leadsource', 'JMAFFSite26748');
-        p.append('affiliateshortcode', 'JMAFFSite26748');
-        p.append('doi', 'true');
-        p.append('acceptterms', 'true');
-        p.append('car_ownership', 'yes');
-        p.append('age_range', '25 - 34');
-        p.append('income_range', 'R10 000 - R15 000');
-        p.append('offer_id', '377');
-
-        postToLeadbyte(p.toString(), res);
-      } catch (error) {
-        sendJson(res, 400, { code: -100, response: error.message });
-      }
-    });
-    return;
-  }
-
-
-  /*
-  ======================================================
-  ZOLOS DEBT (OFFER 2858)
-  ======================================================
-  */
-
-  if (
-    req.url === '/submit-zolos-debt' &&
-    req.method === 'POST'
-  ) {
-    readBody(req, body => {
-      try {
-        const data = JSON.parse(body);
-        const incoming = getIncoming(data);
-        const p = new URLSearchParams();
-
-        p.append('campid', 'DEBT-WHITE-LABEL');
-        p.append('sid', '25393');
-        p.append('returnjson', 'yes');
-        p.append('offer_id', '2858');
-        p.append('firstname', String(incoming.firstname || '').trim());
-        p.append('lastname', String(incoming.lastname || '').trim());
-        p.append('phone1', String(incoming.phone1 || incoming.phone || '').trim());
-        p.append('email', String(incoming.email || '').trim());
-        p.append('optinurl', String(incoming.optinurl || 'http://url.com').trim());
-        p.append('optindate', String(incoming.optindate || getOptinDate()).trim());
-
-        // Zolos Debt specific criteria fields
-        p.append('debt_greater_than_35_000', incoming.debt_greater_than_35_000 !== undefined ? String(incoming.debt_greater_than_35_000) : 'true');
-        p.append('income_greater_than_10_000', incoming.income_greater_than_10_000 !== undefined ? String(incoming.income_greater_than_10_000) : 'true');
-        p.append('underdebtreview', incoming.underdebtreview !== undefined ? String(incoming.underdebtreview) : 'false');
-        p.append('employment', incoming.employment !== undefined ? String(incoming.employment) : 'true');
-
-        postToLeadbyte(p.toString(), res);
-      } catch (error) {
-        sendJson(res, 400, { code: -100, response: error.message });
-      }
-    });
-    return;
-  }
-
-  sendJson(res, 404, {
-    code: 404,
-    response: 'not found',
-    path: req.url
-  });
-
-}).listen(PORT, () => {
-  console.log(`Lead proxy running on port ${PORT}`);
-});
+        p.append('doi', incoming.doi !== undefined ? String(incoming
