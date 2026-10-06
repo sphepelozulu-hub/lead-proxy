@@ -186,7 +186,8 @@ http.createServer((req, res) => {
         '/submit-cartrack',
         '/submit-1life',
         '/submit-loans',
-        '/submit-carinsurance'
+        '/submit-carinsurance',
+        '/submit-zolos-debt'
       ]
     });
     return;
@@ -194,9 +195,9 @@ http.createServer((req, res) => {
 
 
   /*
-  =======================================================
+  ======================================================
   FLEXICARE
-  =======================================================
+  ======================================================
   */
 
   if (
@@ -234,10 +235,10 @@ http.createServer((req, res) => {
 
 
   /*
-  =======================================================
+  ======================================================
   CARTRACK CAMERAS
   OFFER 3046
-  =======================================================
+  ======================================================
   */
 
   if (
@@ -261,18 +262,15 @@ http.createServer((req, res) => {
         p.append('First_Name', firstName);
         p.append('Last_Name', lastName);
         p.append('CellNumber', phone);
-        p.append('Phone_1', phone); // Fixed: LeadByte requires Phone_1 for this campaign[cite: 3]
+        p.append('Phone_1', phone);
         p.append('email', incoming.email || '');
         p.append('optinurl', incoming.optinurl || 'http://url.com');
         p.append('optindate', incoming.optindate || getOptinDate());
         p.append('acceptterms', 'true');
         p.append('offer_id', '3046');
 
-        console.log('CarTrack submission:', Object.fromEntries(p));
-
         postToLeadbyte(p.toString(), res);
       } catch (error) {
-        console.error('CarTrack error:', error.message);
         sendJson(res, 400, { code: -100, response: error.message });
       }
     });
@@ -281,10 +279,10 @@ http.createServer((req, res) => {
 
 
   /*
-  =======================================================
+  ======================================================
   1LIFE LIFE COVER
   OFFER 2807
-  =======================================================
+  ======================================================
   */
 
   if (
@@ -339,9 +337,9 @@ http.createServer((req, res) => {
 
 
   /*
-  =======================================================
+  ======================================================
   LOANS
-  =======================================================
+  ======================================================
   */
 
   if (
@@ -379,9 +377,9 @@ http.createServer((req, res) => {
 
 
   /*
-  =======================================================
+  ======================================================
   CAR INSURANCE
-  =======================================================
+  ======================================================
   */
 
   if (
@@ -415,6 +413,48 @@ http.createServer((req, res) => {
         p.append('age_range', '25 - 34');
         p.append('income_range', 'R10 000 - R15 000');
         p.append('offer_id', '377');
+
+        postToLeadbyte(p.toString(), res);
+      } catch (error) {
+        sendJson(res, 400, { code: -100, response: error.message });
+      }
+    });
+    return;
+  }
+
+
+  /*
+  ======================================================
+  ZOLOS DEBT (OFFER 2858)
+  ======================================================
+  */
+
+  if (
+    req.url === '/submit-zolos-debt' &&
+    req.method === 'POST'
+  ) {
+    readBody(req, body => {
+      try {
+        const data = JSON.parse(body);
+        const incoming = getIncoming(data);
+        const p = new URLSearchParams();
+
+        p.append('campid', 'DEBT-WHITE-LABEL');
+        p.append('sid', '25393');
+        p.append('returnjson', 'yes');
+        p.append('offer_id', '2858');
+        p.append('firstname', String(incoming.firstname || '').trim());
+        p.append('lastname', String(incoming.lastname || '').trim());
+        p.append('phone1', String(incoming.phone1 || incoming.phone || '').trim());
+        p.append('email', String(incoming.email || '').trim());
+        p.append('optinurl', String(incoming.optinurl || 'http://url.com').trim());
+        p.append('optindate', String(incoming.optindate || getOptinDate()).trim());
+
+        // Zolos Debt specific criteria fields
+        p.append('debt_greater_than_35_000', incoming.debt_greater_than_35_000 !== undefined ? String(incoming.debt_greater_than_35_000) : 'true');
+        p.append('income_greater_than_10_000', incoming.income_greater_than_10_000 !== undefined ? String(incoming.income_greater_than_10_000) : 'true');
+        p.append('underdebtreview', incoming.underdebtreview !== undefined ? String(incoming.underdebtreview) : 'false');
+        p.append('employment', incoming.employment !== undefined ? String(incoming.employment) : 'true');
 
         postToLeadbyte(p.toString(), res);
       } catch (error) {
