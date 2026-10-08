@@ -1,5 +1,5 @@
 const http = require('http');
-const https = require('https');
+const https = https || require('https');
 
 const PORT = process.env.PORT || 3000;
 
@@ -127,14 +127,15 @@ function postToLeadbyte(postData, res) {
   request.end();
 }
 
-// Dedicated Slice Poster for Zolos Debt (Offer 2858)
+// Fixed Dedicated Slice Poster for Zolos Debt (Offer 2858)
 function postToZolosSlice(postData, res) {
   const options = {
     hostname: 'returnxdigital.leadbyte.co.uk',
-    path: '/integration?slice=6ac4cc3fbc7f2525965887&' + postData,
+    path: '/integration?slice=6ac4cc3fbc7f2525965887',
     method: 'POST',
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Length': Buffer.byteLength(postData)
     }
   };
 
@@ -172,6 +173,7 @@ function postToZolosSlice(postData, res) {
     });
   });
 
+  request.write(postData);
   request.end();
 }
 
